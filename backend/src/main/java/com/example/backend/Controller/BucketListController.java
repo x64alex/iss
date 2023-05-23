@@ -5,6 +5,7 @@ import com.example.backend.Model.Destination;
 import com.example.backend.Model.PendingBucketList;
 import com.example.backend.Model.PublicBucketList;
 import com.example.backend.Repository.BucketListRepository;
+import com.example.backend.Repository.DestinationRepository;
 import com.example.backend.Security.Payload.response.MessageResponse;
 import com.example.backend.Security.Services.UserDetailsImpl;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,6 +14,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import javax.transaction.Transactional;
+
 
 @RestController
 @RequestMapping("/api")
@@ -20,9 +23,13 @@ public class BucketListController {
     @Autowired
     private BucketListRepository bucketListRepository;
 
+
+    @Autowired
+    private DestinationRepository destinationRepository;
+
     @GetMapping("/bucketList/public")
     public BucketList getPublicBucketList() {
-        BucketList publicBucketList = this.getPublicBucketList();
+        BucketList publicBucketList = bucketListRepository.getPublicBucketList();
         if(publicBucketList == null){
             publicBucketList = new PublicBucketList();
             bucketListRepository.save(publicBucketList);
@@ -42,7 +49,7 @@ public class BucketListController {
     @GetMapping("/bucketList/pending")
     @PreAuthorize("hasRole('ROLE_ADMIN')")
     public BucketList getPendingBucketList() {
-        BucketList pendingBucketList = this.getPendingBucketList();
+        BucketList pendingBucketList = bucketListRepository.getPendingBucketList();
         if(pendingBucketList == null){
             pendingBucketList = new PendingBucketList();
             bucketListRepository.save(pendingBucketList);
@@ -104,6 +111,44 @@ public class BucketListController {
             bucketListRepository.save(publicBucketList);
             bucketListRepository.save(pendingBucketList);
             return ResponseEntity.ok(new MessageResponse("Destination approved to be added to public bucket list!"));
+        }catch(Exception e){
+            return ResponseEntity.badRequest().body(new MessageResponse("Error: " + e.getMessage()));
+        }
+
+    }
+
+    @Transactional
+    @DeleteMapping("/bucketList/public")
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
+    public ResponseEntity<?> removePublicDestination(@RequestParam Long destinationId) {
+        try{
+            BucketList publicBucketList = this.getPublicBucketList();
+
+            publicBucketList.removeDestination(destinationId);
+
+            bucketListRepository.save(publicBucketList);
+            destinationRepository.deleteById(destinationId);
+            System.out.println(bucketListRepository.getPublicBucketList().getDestinationList());
+            return ResponseEntity.ok(new MessageResponse("Destination deleted fromm public bucket list!"));
+        }catch(Exception e){
+            return ResponseEntity.badRequest().body(new MessageResponse("Error: " + e.getMessage()));
+        }
+
+    }
+
+
+    @Transactional
+    @DeleteMapping("/bucketList/private")
+    @PreAuthorize("hasRole('ROLE_REGULAR')")
+    public ResponseEntity<?> removePrivateDestination(@RequestParam Long destinationId) {
+        try{
+            BucketList privateBucketList = this.getPrivateBucketList();
+
+            privateBucketList.removeDestination(destinationId);
+
+            bucketListRepository.save(privateBucketList);
+            destinationRepository.deleteById(destinationId);
+            return ResponseEntity.ok(new MessageResponse("Destination deleted fromm private bucket list!"));
         }catch(Exception e){
             return ResponseEntity.badRequest().body(new MessageResponse("Error: " + e.getMessage()));
         }
