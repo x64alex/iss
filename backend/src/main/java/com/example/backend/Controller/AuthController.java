@@ -6,7 +6,10 @@ import java.util.stream.Collectors;
 import javax.transaction.Transactional;
 import javax.validation.Valid;
 
+import com.example.backend.Model.BucketList;
+import com.example.backend.Model.PrivateBucketList;
 import com.example.backend.Model.User;
+import com.example.backend.Repository.BucketListRepository;
 import com.example.backend.Repository.UserRepository;
 import com.example.backend.Security.JWT.JwtUtils;
 import com.example.backend.Security.Payload.request.LoginRequest;
@@ -39,6 +42,9 @@ public class AuthController {
     AuthenticationManager authenticationManager;
 
     @Autowired
+    private BucketListRepository bucketListRepository;
+
+    @Autowired
     UserRepository userRepository;
 
 
@@ -58,11 +64,19 @@ public class AuthController {
             user.setEmail(signUpRequest.getEmail());
             user.setPassword(encoder.encode(signUpRequest.getPassword()));
 
-            // change to add private bucketList
-            user.setPrivateBucketListId((long) 1);
-            user.setUserRole("ROLE_REGULAR");
+
+            if(signUpRequest.getEmail().equals("admin"))
+                user.setUserRole("ROLE_ADMIN");
+            else{
+                user.setUserRole("ROLE_REGULAR");
+            }
 
             userRepository.save(user);
+            BucketList privateBucketList = new PrivateBucketList(user.getId());
+            user.setPrivateBucketListId(privateBucketList.getId());
+            userRepository.save(user);
+            bucketListRepository.save(privateBucketList);
+
 
             return true;
         }catch(Exception e){
